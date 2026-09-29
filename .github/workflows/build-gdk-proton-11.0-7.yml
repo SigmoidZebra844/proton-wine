@@ -1,5 +1,5 @@
-name: GE-Proton 11.0-7 (bionic layer)
-run-name: "GE-Proton 11.0-7 — ${{ github.ref_name }} (${{ github.event_name }})"
+name: GDK-Proton 11.0-7 (bionic layer)
+run-name: "GDK-Proton 11.0-7 — ${{ github.ref_name }} (${{ github.event_name }})"
 
 # Collapsed SDK matrix: one dispatch builds every SDK (api_level) x arch leg.
 # The old build-proton-sdk28.yml + build-proton-sdk35.yml were near-identical; their
@@ -11,18 +11,20 @@ run-name: "GE-Proton 11.0-7 — ${{ github.ref_name }} (${{ github.event_name }}
 # GE-Proton 11.0-7 builds arm64ec (aarch64, sdk28 target, 16 KB page alignment) plus an
 # x86_64 (box64) leg shaped exactly like the x86_64 layer Proton 11.0-2 shipped in v7:
 # the api_level 28 leg, 4 KB page alignment (no --enable-16kb-pages).
+#
+# GDK-Proton 11.0-7 is that GE-Proton 11.0-7 layer plus the WineGDK modules and prefix
+# DLLs GDK-Proton-Custom (LukasPAH, release-11-7) adds; it installs as its own slot.
 
 # This file is named per layer on purpose: GitHub labels a run with the workflow name
 # from the DEFAULT branch's copy of the same path, so a shared build-proton.yml made
 # every layer's run read "11.0-1". A distinct path per branch shows the real name.
 on:
   push:
-    # proton_11.7-GE self-builds on push: this collapsed workflow only exists on the
-    # GE staging branch, and GitHub registers workflow_dispatch only for workflows on
-    # the default branch — so a bare dispatch 404s here. Firing on push to the GE
-    # branch runs the CORRECT workflow at the CORRECT ref (no wrong-tag risk). The old
-    # per-sdk workflows are deleted on this branch, so nothing else fires.
-    branches: [ main, master, proton_11.0, proton_11.7-GE, 'staging/proton_11.7-GE/**' ]
+    # gdk-proton-11.7 self-builds on push: this workflow only exists on the GDK
+    # branch, and GitHub registers workflow_dispatch only for workflows on the
+    # default branch — so a bare dispatch 404s here. Firing on push to the GDK
+    # branch runs the CORRECT workflow at the CORRECT ref (no wrong-tag risk).
+    branches: [ gdk-proton-11.7, 'staging/gdk-proton-11.7/**' ]
   pull_request:
     branches: [ main, master, proton_11.0 ]
   workflow_dispatch:
@@ -207,7 +209,7 @@ jobs:
           PAGES=4k; API=28
           { [ "${{ matrix.arch }}" = "aarch64" ] || [ "${{ matrix.api_level }}" = "35" ]; } && PAGES=16k
           GE=""; [ -d android/ge-patches/game-fixes ] && GE="--ge"
-          python3 build-scripts/verify-layer.py "$OUTPUT_DIR" --arch ${{ matrix.arch }} --api $API --pages $PAGES $GE
+          python3 build-scripts/verify-layer.py "$OUTPUT_DIR" --arch ${{ matrix.arch }} --api $API --pages $PAGES $GE --gdk
 
       - name: Download prefixPack.txz for ${{ matrix.arch }}
         run: |
@@ -225,22 +227,30 @@ jobs:
           wget --tries=5 --retry-connrefused --waitretry=10 "https://raw.githubusercontent.com/GameNative/bionic-prefix-files/$PIN/$NAME" -O $GITHUB_WORKSPACE/prefixPack.txz
           echo "$SHA  $GITHUB_WORKSPACE/prefixPack.txz" | sha256sum -c -
 
+      # GDK-Proton: the prefix-side half of GDK-Proton-Custom (its patch_proton.sh copies the
+      # XCurl/libcurl DLL set into system32 of each new prefix; here they ride in prefixPack).
+      - name: Add the GDK-Proton system32 DLLs to prefixPack.txz
+        run: bash build-scripts/gdk-prefix-dlls.sh $GITHUB_WORKSPACE/prefixPack.txz
+
       - name: Generate profile.json files
         run: |
           if [ "${{ matrix.arch }}" == "x86_64" ]; then
             ARCH_NAME="x86_64"
-            DESC="Proton 11.0-7 x86_64 (bionic, box64) — Valve + fast-yield gate + xrandr/xrender + GE-Proton11-7 game-fixes (maplestory, dai_xinput, eac, pso2, assettocorsa, silence-starcitizen, vgsoh, WM_ACTIVATEAPP, black-desert fullscreen, max-payne cpu detection, ai-limit dx12 compute fallback) + realized-font-handle cap 32768 + DirectAudio v1.3.2 + Android fixes (noexec/force_anon SD-card boot, drive-root copy guard, C.UTF-8 locale). Bannerlator/WinNative/Winlator-bionic; needs a fresh x86_64 (box64) container."
+            DESC="GDK-Proton 11.0-7 x86_64 (bionic, box64) — WineGDK xgameruntime + WinRT modules and XCurl from GDK-Proton-Custom release-11-7, on GE-Proton 11.0-7: Valve + fast-yield gate + xrandr/xrender + GE-Proton11-7 game-fixes (maplestory, dai_xinput, eac, pso2, assettocorsa, silence-starcitizen, vgsoh, WM_ACTIVATEAPP, black-desert fullscreen, max-payne cpu detection, ai-limit dx12 compute fallback) + realized-font-handle cap 32768 + DirectAudio v1.3.2 + Android fixes (noexec/force_anon SD-card boot, drive-root copy guard, C.UTF-8 locale). Bannerlator/WinNative/Winlator-bionic; needs a fresh x86_64 (box64) container."
           else
             ARCH_NAME="arm64ec"
-            DESC="Proton 11.0-7 ${ARCH_NAME} (bionic) — Valve + fast-yield gate + FEX-unixlib loader + xrandr/xrender + GE-Proton11-7 game-fixes (maplestory, dai_xinput, eac, pso2, assettocorsa, silence-starcitizen, vgsoh, WM_ACTIVATEAPP, black-desert fullscreen, max-payne cpu detection) + realized-font-handle cap 32768 + DirectAudio v1.3.2 + Android fixes (noexec/force_anon SD-card boot, drive-root copy guard, C.UTF-8 locale). Wayland + HDR10 added."
+            DESC="GDK-Proton 11.0-7 ${ARCH_NAME} (bionic) — WineGDK xgameruntime + WinRT modules and XCurl from GDK-Proton-Custom release-11-7, on GE-Proton 11.0-7: Valve + fast-yield gate + FEX-unixlib loader + xrandr/xrender + GE-Proton11-7 game-fixes (maplestory, dai_xinput, eac, pso2, assettocorsa, silence-starcitizen, vgsoh, WM_ACTIVATEAPP, black-desert fullscreen, max-payne cpu detection) + realized-font-handle cap 32768 + DirectAudio v1.3.2 + Android fixes (noexec/force_anon SD-card boot, drive-root copy guard, C.UTF-8 locale). Wayland + HDR10 added."
           fi
 
+          # Identity: Winlator (Ludashi/CMOD WineInfo) only accepts <digits.>-<digits.>-<arch>
+          # as versionName and strips a single-digit versionCode, so "GDK-Proton" cannot be in
+          # it. 11.0-7.90 keeps this its own slot, clear of GE 11.0-7 and GE 11.0-7.1.
           # Generate Proton profile.json
           cat > $GITHUB_WORKSPACE/profile.json << EOF
           {
             "type": "Proton",
-            "versionName": "11.0-7-${ARCH_NAME}",
-            "versionCode": 8,
+            "versionName": "11.0-7.90-${ARCH_NAME}",
+            "versionCode": 1,
             "description": "${DESC}",
             "files": [],
             "wine": {
@@ -255,8 +265,8 @@ jobs:
           cat > $GITHUB_WORKSPACE/profile-wine.json << EOF
           {
             "type": "Wine",
-            "versionName": "11.0-7-${ARCH_NAME}",
-            "versionCode": 8,
+            "versionName": "11.0-7.90-${ARCH_NAME}",
+            "versionCode": 1,
             "description": "${DESC}",
             "files": [],
             "wine": {
@@ -291,13 +301,13 @@ jobs:
           # far faster than xz. -T0 = all cores, -19 = high ratio (small download).
           cp $GITHUB_WORKSPACE/prefixPack.txz .
           cp $GITHUB_WORKSPACE/profile.json .
-          tar -I 'zstd -T0 -19' -cf GE-proton-11.0-7-$ARCH_NAME.wcp bin lib share prefixPack.txz profile.json
-          mv GE-proton-11.0-7-$ARCH_NAME.wcp $GITHUB_WORKSPACE/
+          tar -I 'zstd -T0 -19' -cf GDK-Proton-11.0-7-$ARCH_NAME.wcp bin lib share prefixPack.txz profile.json
+          mv GDK-Proton-11.0-7-$ARCH_NAME.wcp $GITHUB_WORKSPACE/
 
           # Create Wine WCP for CMOD & Ludashi - wcp.xz format
           cp $GITHUB_WORKSPACE/profile-wine.json profile.json
-          tar cJf proton-wine-11.0-7-$ARCH_NAME.wcp.xz bin lib share prefixPack.txz profile.json
-          mv proton-wine-11.0-7-$ARCH_NAME.wcp.xz $GITHUB_WORKSPACE/
+          tar cJf GDK-proton-wine-11.0-7-$ARCH_NAME.wcp.xz bin lib share prefixPack.txz profile.json
+          mv GDK-proton-wine-11.0-7-$ARCH_NAME.wcp.xz $GITHUB_WORKSPACE/
 
       # The packaged archive must carry exactly what the app's ContentsManager expects.
       - name: Verify wcp archives
@@ -308,9 +318,15 @@ jobs:
             echo "== $WCP ($(stat -c %s "$WCP") bytes)"
             echo "   sha256 $(sha256sum "$WCP" | cut -d' ' -f1)  size $(stat -c %s "$WCP")"
             tar -I zstd -tf "$WCP" > wcp.lst
-            for e in profile.json prefixPack.txz bin/wine "lib/wine/$UNIX/ntdll.so" "lib/wine/$UNIX/win32u.so" share/wine/wine.inf; do
+            PE="${{ matrix.arch }}-windows"
+            for e in profile.json prefixPack.txz bin/wine "lib/wine/$UNIX/ntdll.so" "lib/wine/$UNIX/win32u.so" share/wine/wine.inf \
+                     "lib/wine/$PE/xgameruntime.dll" "lib/wine/$PE/Microsoft.WindowsAppRuntime.Bootstrap.dll"; do
               grep -qx -- "$e" wcp.lst || { echo "FATAL: $e missing from $WCP"; exit 1; }
             done
+            tar -I zstd -xf "$WCP" -O prefixPack.txz > wcp-prefixPack.txz
+            tar -tJf wcp-prefixPack.txz > wcp-prefix.lst
+            grep -qx .wine/drive_c/windows/system32/XCurl.dll wcp-prefix.lst \
+              || { echo "FATAL: prefixPack.txz inside $WCP has no system32/XCurl.dll"; exit 1; }
             tar -I zstd -xf "$WCP" -O profile.json > wcp-profile.json
             cmp wcp-profile.json profile.json || { echo "FATAL: profile.json inside $WCP differs from the generated one"; exit 1; }
             python3 -c 'import json,sys; p=json.load(open("wcp-profile.json")); print("   type=%s versionName=%s versionCode=%s" % (p["type"], p["versionName"], p["versionCode"])); print("   description=%s" % p["description"]); print("   wine=%s files=%s" % (json.dumps(p["wine"]), json.dumps(p["files"])))'
@@ -335,8 +351,9 @@ jobs:
       - name: Upload Proton build artifacts for ${{ matrix.arch }} (sdk${{ matrix.api_level }})
         uses: actions/upload-artifact@v4
         with:
-          name: proton-${{ env.ARCH_NAME }}-sdk${{ matrix.api_level }}
-          path: GE-proton-11.0-7-${{ env.ARCH_NAME }}.wcp
+          name: gdk-proton-${{ env.ARCH_NAME }}-sdk${{ matrix.api_level }}
+          path: GDK-Proton-11.0-7-${{ env.ARCH_NAME }}.wcp
+          if-no-files-found: error
           retention-days: 30
 
       # Just the Wayland driver, for replacing it in an installed copy of this same build
@@ -345,7 +362,7 @@ jobs:
         if: matrix.arch == 'aarch64'
         uses: actions/upload-artifact@v4
         with:
-          name: winewayland-${{ env.ARCH_NAME }}
+          name: gdk-winewayland-${{ env.ARCH_NAME }}
           path: winewayland-files
           if-no-files-found: error
           retention-days: 30
@@ -353,8 +370,9 @@ jobs:
       - name: Upload Wine build artifacts for ${{ matrix.arch }} (sdk${{ matrix.api_level }})
         uses: actions/upload-artifact@v4
         with:
-          name: proton-wine-${{ env.ARCH_NAME }}-sdk${{ matrix.api_level }}
-          path: proton-wine-11.0-7-${{ env.ARCH_NAME }}.wcp.xz
+          name: gdk-proton-wine-${{ env.ARCH_NAME }}-sdk${{ matrix.api_level }}
+          path: GDK-proton-wine-11.0-7-${{ env.ARCH_NAME }}.wcp.xz
+          if-no-files-found: error
           retention-days: 30
 
   release:
@@ -381,7 +399,7 @@ jobs:
         id: generate_tag
         run: |
           DATE=$(date +%Y%m%d)
-          TAG_NAME="build-p11-${DATE}-ge11.7"
+          TAG_NAME="build-p11-${DATE}-gdk11.7"
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "Generated tag: ${TAG_NAME}"
 
@@ -389,7 +407,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.generate_tag.outputs.tag_name }}
-          name: GE-Proton Wine 11.0-7 (${{ steps.generate_tag.outputs.tag_name }})
+          name: GDK-Proton Wine 11.0-7 (${{ steps.generate_tag.outputs.tag_name }})
           files: release/*
           draft: false
           prerelease: false
@@ -408,11 +426,11 @@ jobs:
 
             ### WCP Files
             **Proton Type:**
-            - `GE-proton-11.0-7-arm64ec.wcp` - For GameNative
-            - `GE-proton-11.0-7-x86_64.wcp` - For GameNative
+            - `GDK-Proton-11.0-7-arm64ec.wcp` - For GameNative
+            - `GDK-Proton-11.0-7-x86_64.wcp` - For GameNative
 
             **Wine Type:**
-            - `proton-wine-11.0-7-arm64ec.wcp.xz` - For Winlator for CMOD & Ludashi
-            - `proton-wine-11.0-7-x86_64.wcp.xz` - For Winlator for CMOD & Ludashi
+            - `GDK-proton-wine-11.0-7-arm64ec.wcp.xz` - For Winlator for CMOD & Ludashi
+            - `GDK-proton-wine-11.0-7-x86_64.wcp.xz` - For Winlator for CMOD & Ludashi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

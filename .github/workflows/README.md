@@ -12,6 +12,7 @@ Each layer branch carries exactly one build workflow, named for the layer it bui
 | `proton_11.5-GE` | `build-ge-proton-11.0-5.yml` | GE-Proton 11.0-5 |
 | `proton_11.6-GE` | `build-ge-proton-11.0-6.yml` | GE-Proton 11.0-6 |
 | `proton_11.7-GE` | `build-ge-proton-11.0-7.yml` | GE-Proton 11.0-7 (arm64ec + x86_64) |
+| `gdk-proton-11.7` | `build-gdk-proton-11.0-7.yml` | GDK-Proton 11.0-7: GE-Proton 11.0-7 + WineGDK (arm64ec + x86_64) |
 
 The file name is distinct per branch on purpose: GitHub labels a run with the
 workflow name taken from the default branch's copy of the same path, so a shared
