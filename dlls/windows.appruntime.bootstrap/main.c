@@ -34,7 +34,7 @@ HRESULT WINAPI MddBootstrapInitialize2()
     return S_OK;
 }
 
-void MddBootstrapShutdown()
+void WINAPI MddBootstrapShutdown()
 {
     TRACE("MddBootstrapShutdown stub!");
     return;
