@@ -8,7 +8,7 @@ flag that flips, or an `#ifdef` that compiles a feature out all produce a comple
 bootable, silently-degraded layer. Every check below is a feature that once shipped
 broken or nearly did (see the git log of build-scripts/).
 
-usage: verify-layer.py OUTPUT_DIR --arch aarch64|x86_64 --api 28|35 --pages 4k|16k [--ge]
+usage: verify-layer.py OUTPUT_DIR --arch aarch64|x86_64 --api 28|35 --pages 4k|16k [--ge] [--gdk]
 
 Exit 0 = every check passed. Exit 1 = at least one FATAL. stdlib only.
 """
@@ -112,6 +112,7 @@ def main():
     ap.add_argument("--api", type=int, required=True, help="expected .note.android.ident API level")
     ap.add_argument("--pages", choices=["4k", "16k"], required=True)
     ap.add_argument("--ge", action="store_true", help="expect the GE-Proton game-fixes tier")
+    ap.add_argument("--gdk", action="store_true", help="expect the GDK-Proton WineGDK modules")
     a = ap.parse_args()
 
     root = a.output_dir
@@ -120,7 +121,7 @@ def main():
     pe = os.path.join(root, "lib/wine", ("aarch64" if arm64ec else "x86_64") + "-windows")
     pe32 = os.path.join(root, "lib/wine/i386-windows")
 
-    print("== verify-layer: %s arch=%s api=%d pages=%s ge=%s" % (root, a.arch, a.api, a.pages, a.ge))
+    print("== verify-layer: %s arch=%s api=%d pages=%s ge=%s gdk=%s" % (root, a.arch, a.api, a.pages, a.ge, a.gdk))
 
     # 1. Tree shape. A skeleton tree (failed make) has bin/ + share/ but few or no DLLs.
     print("-- tree shape")
@@ -229,6 +230,27 @@ def main():
             # check sits in install_bpf, so the string is only there if HAVE_SECCOMP compiled it).
             report(u16("AI-LIMIT.exe") in read(os.path.join(pe, "ntdll.dll")), "ntdll.dll: AI LIMIT DX12 compute-shader fallback")
             report(b"3873970" in ntdll_so, "ntdll.so: NASCAR 25 protector repair (seccomp SIGSYS)")
+
+    # 7. GDK-Proton: the WineGDK modules GDK-Proton-Custom release-11-7 ships (only on GDK layers).
+    if a.gdk:
+        print("-- GDK-Proton (WineGDK modules)")
+        machine = 0xAA64 if arm64ec else 0x8664  # ARM64X images carry ARM64 in the file header
+        for m in ("xgameruntime.dll", "Microsoft.WindowsAppRuntime.Bootstrap.dll", "windows.ui.core.textinput.dll",
+                  "windows.devices.enumeration.dll", "twinapi.appcore.dll", "wintypes.dll"):
+            for d, label, want in ((pe, "", machine), (pe32, "i386 ", 0x14C)):
+                data = read(os.path.join(d, m))
+                got = None
+                if data[:2] == b"MZ":
+                    got = struct.unpack_from("<H", data, struct.unpack_from("<I", data, 0x3C)[0] + 4)[0]
+                report(got == want, "%s%s built" % (label, m), "machine %s" % (hex(got) if got is not None else "missing"))
+        report(b"InitializeApiImplEx2" in read(os.path.join(pe, "xgameruntime.dll")),
+               "xgameruntime.dll: exports InitializeApiImplEx2")
+        report(b"MddBootstrapInitialize2" in read(os.path.join(pe, "Microsoft.WindowsAppRuntime.Bootstrap.dll")),
+               "Microsoft.WindowsAppRuntime.Bootstrap.dll: exports MddBootstrapInitialize2")
+        report(u16("Windows.UI.Text.Core.CoreTextServicesManager") in read(os.path.join(pe, "windows.ui.core.textinput.dll")),
+               "windows.ui.core.textinput.dll: WineGDK CoreTextServicesManager")
+        report(u16("Windows.ApplicationModel.DataTransfer.DataTransferManager") in read(os.path.join(pe, "twinapi.appcore.dll")),
+               "twinapi.appcore.dll: WineGDK DataTransferManager")
 
     print("== verify-layer: %s" % ("PASS" if fails == 0 else "%d FATAL check(s)" % fails))
     return 0 if fails == 0 else 1
