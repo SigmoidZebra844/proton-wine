@@ -251,6 +251,8 @@ def main():
                "windows.ui.core.textinput.dll: WineGDK CoreTextServicesManager")
         report(u16("Windows.ApplicationModel.DataTransfer.DataTransferManager") in read(os.path.join(pe, "twinapi.appcore.dll")),
                "twinapi.appcore.dll: WineGDK DataTransferManager")
+        report(b"WINHTTP_OPTION_IPV6_FAST_FALLBACK %lu ignored" in read(os.path.join(pe, "winhttp.dll")),
+               "winhttp.dll: IPV6_FAST_FALLBACK accepted (GDK XCurl)")
 
     print("== verify-layer: %s" % ("PASS" if fails == 0 else "%d FATAL check(s)" % fails))
     return 0 if fails == 0 else 1

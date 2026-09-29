@@ -279,6 +279,16 @@ static BOOL session_set_option( struct object_header *hdr, DWORD option, void *b
         return TRUE;
     }
 
+    case WINHTTP_OPTION_IPV6_FAST_FALLBACK:
+        if (buflen != sizeof(DWORD))
+        {
+            SetLastError( ERROR_INSUFFICIENT_BUFFER );
+            return FALSE;
+        }
+        /* GDK XCurl sets this on every session and gives up if it fails. */
+        FIXME( "WINHTTP_OPTION_IPV6_FAST_FALLBACK %lu ignored\n", *(DWORD *)buffer );
+        return TRUE;
+
     default:
         FIXME( "unimplemented option %lu\n", option );
         SetLastError( ERROR_WINHTTP_INVALID_OPTION );
