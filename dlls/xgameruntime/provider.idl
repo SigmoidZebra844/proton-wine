@@ -1,0 +1,456 @@
+/*
+ * xgameruntime.dll implementation
+ *
+ * Written by Weather
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
+ */
+
+#pragma makedep header
+
+import "propidl.idl";
+import "xuser.idl";
+
+cpp_quote("#include <xtaskqueue.h>")
+
+// --- xgameruntime --- //
+typedef void* XSystemHandle;
+
+typedef enum XSystemHandleType XSystemHandleType;
+typedef enum XSystemHandleCallbackReason XSystemHandleCallbackReason;
+typedef enum XGameRuntimeFeature XGameRuntimeFeature;
+typedef enum XGameActivationType
+{
+    XGameActivationType_Protocol,
+    XGameActivationType_File,
+    XGameActivationType_PendingGameInvite,
+    XGameActivationType_AcceptedGameInvite,
+} XGameActivationType;
+
+typedef struct XGameActivationInfo XGameActivationInfo;
+
+typedef void __stdcall XGameActivationCallback( void *context, const XGameActivationInfo *activationInfo );
+
+struct XGameActivationInfo
+{
+    XGameActivationType type;
+    union
+    {
+        const char *protocolUri;
+        const char *file;
+        const char *inviteUri;
+    };
+};
+
+typedef struct XVersion XVersion;
+typedef struct XSystemAnalyticsInfo XSystemAnalyticsInfo;
+typedef struct XAsyncBlock XAsyncBlock;
+typedef struct XTaskQueueObject* XTaskQueueHandle;
+typedef struct XTaskQueueRegistrationToken XTaskQueueRegistrationToken;
+
+typedef void XAsyncCompletionRoutine(struct XAsyncBlock* asyncBlock);
+
+typedef PVOID XGameSaveProviderHandle;
+typedef PVOID XGameSaveContainerHandle;
+typedef PVOID XGameSaveUpdateHandle;
+
+typedef void (__stdcall *XGameSaveContainerInfoCallback)();
+typedef void (__stdcall *XGameSaveBlobInfoCallback)();
+
+typedef struct XGameSaveBlobInfo {  
+    const char* name;  
+    uint32_t size;  
+} XGameSaveBlobInfo;
+typedef struct XGameSaveBlob {  
+    XGameSaveBlobInfo info;  
+    uint8_t* data;  
+} XGameSaveBlob;
+
+interface IWineAsyncWorkImpl;
+interface IXSystemImpl;
+interface IXSystemAnalyticsImpl;
+interface IXGameRuntimeFeatureImpl;
+interface IXUserBase;
+interface IXUserAddWithUi;
+interface IXUserMsa;
+interface IXUserStore;
+interface IXUserPlatform;
+interface IXUserSignOut;
+interface IXUserImpl;
+interface IXGameProtocolImpl;
+interface IXGameSave;
+
+coclass XSystemImpl;
+coclass XSystemAnalyticsImpl;
+coclass XGameRuntimeFeatureImpl;
+coclass XGameProtocolImpl;
+coclass XGameSaveImpl;
+
+enum XSystemHandleType
+{
+    AppCaptureScreenshotStream = 0x00,
+    DisplayTimeoutDeferral     = 0x01,
+    GameSaveContainer          = 0x02,
+    GameSaveProvider           = 0x03,
+    GameSaveUpdate             = 0x04,
+    PackageInstallationMonitor = 0x05,
+    PackageMount               = 0x06,
+    SpeechSynthesizer          = 0x07,
+    SpeechSynthesizerStream    = 0x08,
+    StoreContext               = 0x09,
+    StoreLicense               = 0x0a,
+    StoreProductQuery          = 0x0b,
+    TaskQueue                  = 0x0c,
+    User                       = 0x0d,
+    UserSignOutDeferral        = 0x0e,
+    GameUiTextEntry            = 0x0f
+};
+
+enum XGameRuntimeFeature
+{  
+    XAccessibility             = 0,  
+    XAppCapture                = 1,  
+    XAsync                     = 2,  
+    XAsyncProvider             = 3,  
+    XDisplay                   = 4,  
+    XGame                      = 5,  
+    XGameInvite                = 6,  
+    XGameSave                  = 7,  
+    XGameUI                    = 8,  
+    XLauncher                  = 9,  
+    XNetworking                = 10,  
+    XPackage                   = 11,  
+    XPersistentLocalStorage    = 12,  
+    XSpeechSynthesizer         = 13,  
+    XStore                     = 14,  
+    XSystem                    = 15,  
+    XTaskQueue                 = 16,  
+    XThread                    = 17,  
+    XUser                      = 18,  
+    XError                     = 19,  
+    XGameEvent                 = 20, 
+    XGameStreaming             = 21, 
+};
+
+enum XSystemHandleCallbackReason
+{
+    Created     = 0x00,
+    Destroyed   = 0x01
+};
+
+struct XVersion {  
+    union
+    {
+        struct
+        {
+            UINT16 major;  
+            UINT16 minor;  
+            UINT16 build;  
+            UINT16 revision;
+        };
+        UINT64 Value;
+    };
+};
+
+struct XSystemAnalyticsInfo
+{
+    XVersion osVersion;  
+    XVersion hostingOsVersion;  
+    CHAR family[64];  
+    CHAR form[64];
+};
+
+[
+    object,
+    uuid(7664288b-54e9-45f9-af0b-b4ad047fa194)
+]
+interface IWineAsyncWorkImpl : IUnknown
+{
+
+}
+
+[
+    object,
+    uuid(dadc2895-34b0-4ef5-a83e-45114d629b80)
+]
+interface IXSystemImpl : IUnknown
+{
+    HRESULT XSystemGetConsoleId( [in] INT32 consoleIdSize, [out, size_is(consoleIdSize)] LPSTR consoleId, [out] SIZE_T *consoleIdUsed );
+    HRESULT XSystemGetXboxLiveSandboxId( [in] INT32 sandboxIdSize, [out, size_is(sandboxIdSize)] LPSTR sandboxId, [out] SIZE_T *sandboxIdUsed );
+    HRESULT XSystemGetAppSpecificDeviceId( [in] INT32 appSpecificDeviceIdSize, [out, size_is(appSpecificDeviceIdSize)] LPSTR appSpecificDeviceId, [out] SIZE_T *appSpecificDeviceIdUsed );
+    /*
+     *  BUG: You cannot have function pointer parameters within COM declared interfaces,
+     * yet Microsoft, in their infinite wisdom, declared function pointers within the 2 
+     * functions below, within a COM interface. Unfortunately no workaround can be found 
+     * unless we transition to a WinRT codebase.
+     */
+    HRESULT XSystemHandleTrack( /* [in] XSystemHandleCallback callback, [in] void *context */ );
+    BOOLEAN XSystemIsHandleValid( /* [in] XSystemHandleCallback callback */ );
+    HRESULT XSystemAllowFullDownloadBandwidth( [in] boolean enable );
+}
+
+[
+    object,
+    uuid(b884675d-b738-4a9c-815d-9a9a1e0c6c9b)
+]
+interface IXSystemAnalyticsImpl : IUnknown
+{
+    XSystemAnalyticsInfo XSystemGetAnalyticsInfo();
+}
+
+[
+    object,
+    uuid(8836fe87-edb9-4fe3-8dad-05f0d2cd5b40)
+]
+interface IXGameRuntimeFeatureImpl : IUnknown
+{
+    BOOLEAN XGameRuntimeIsFeatureAvailable( [in] XGameRuntimeFeature feature );
+}
+
+[
+    local,
+    object,
+    uuid(01acd177-91f9-4763-a38e-ccbb55ce32e0)
+]
+interface IXUserBase : IUnknown
+{
+    HRESULT XUserDuplicateHandle( [in] XUserHandle user, [out] XUserHandle *duplicated);
+    void XUserCloseHandle( [in] XUserHandle user );
+    INT32 XUserCompare( [in] XUserHandle user1, [in] XUserHandle user2 );
+    HRESULT XUserGetMaxUsers( [out] UINT32 *maxUsers );
+    HRESULT XUserAddAsync( [in] XUserAddOptions options, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserAddResult( [in,out] XAsyncBlock *asyncBlock, [out] XUserHandle *user );
+    HRESULT XUserGetLocalId( [in] XUserHandle user, [out] XUserLocalId *localId );
+    HRESULT XUserFindUserByLocalId( [in] XUserLocalId localId, [out] XUserHandle *user );
+    HRESULT XUserGetId( [in] XUserHandle user, [out] UINT64 *userId );
+    HRESULT XUserFindUserById( [in] UINT64 userId, [out] XUserHandle *user );
+    HRESULT XUserGetIsGuest( [in] XUserHandle user, [out] BOOLEAN *isGuest );
+    HRESULT XUserGetState( [in] XUserHandle user, [out] XUserState *state );
+    HRESULT __PADDING__();
+    HRESULT XUserGetGamerPictureAsync( [in] XUserHandle user, [in] XUserGamerPictureSize size, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserGetGamerPictureResultSize( [in,out] XAsyncBlock *asyncBlock, [out] SIZE_T *size );
+    HRESULT XUserGetGamerPictureResult( [in,out] XAsyncBlock *asyncBlock, [in] SIZE_T size, [out] void *buffer, [out] SIZE_T *used );
+    HRESULT XUserGetAgeGroup( [in] XUserHandle user, [out] XUserAgeGroup *group );
+    HRESULT XUserCheckPrivilege( [in] XUserHandle user, [in] XUserPrivilegeOptions options, [in] XUserPrivilege privilege, [out] BOOLEAN *hasPrivilege, [out] XUserPrivilegeDenyReason *reason );
+    HRESULT XUserResolvePrivilegeWithUiAsync( [in] XUserHandle user, [in] XUserPrivilegeOptions options, [in] XUserPrivilege privilege, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserResolvePrivilegeWithUiResult( [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserGetTokenAndSignatureAsync( [in] XUserHandle user, [in] XUserGetTokenAndSignatureOptions options, [in] LPCSTR method, [in] LPCSTR url, [in] SIZE_T count, [in] const XUserGetTokenAndSignatureHttpHeader *headers, [in] SIZE_T size, [in] const void *buffer, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserGetTokenAndSignatureResultSize( [in,out] XAsyncBlock *asyncBlock, [out] SIZE_T *size );
+    HRESULT XUserGetTokenAndSignatureResult( [in,out] XAsyncBlock *asyncBlock, [in] SIZE_T size, [out] void *buffer, [out] XUserGetTokenAndSignatureData **ptr, [out] SIZE_T *used );
+    HRESULT XUserGetTokenAndSignatureUtf16Async( [in] XUserHandle user, [in] XUserGetTokenAndSignatureOptions options, [in] LPCWSTR method, [in] LPCWSTR url, [in] SIZE_T count, [in] const XUserGetTokenAndSignatureUtf16HttpHeader *headers, [in] SIZE_T size, [in] const void *buffer, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserGetTokenAndSignatureUtf16ResultSize( [in,out] XAsyncBlock *asyncBlock, [out] SIZE_T *size );
+    HRESULT XUserGetTokenAndSignatureUtf16Result( [in,out] XAsyncBlock *asyncBlock, [in] SIZE_T size, [out] void *buffer, [out] XUserGetTokenAndSignatureUtf16Data **ptr, [out] SIZE_T *used );
+    HRESULT XUserResolveIssueWithUiAsync( [in] XUserHandle user, [in] LPCSTR url, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserResolveIssueWithUiResult( [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserResolveIssueWithUiUtf16Async( [in] XUserHandle user, [in] LPCWSTR url, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserResolveIssueWithUiUtf16Result( [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserRegisterForChangeEvent( [in] XTaskQueueHandle queue, [in] void *context, [in] XUserChangeEventCallback *callback, [in] XTaskQueueRegistrationToken *token );
+    BOOLEAN XUserUnregisterForChangeEvent( [in] XTaskQueueRegistrationToken token, [in] BOOLEAN wait );
+    HRESULT XUserGetSignOutDeferral( [out] XUserSignOutDeferralHandle *deferral );
+    void XUserCloseSignOutDeferralHandle( [in] XUserSignOutDeferralHandle deferral );
+}
+
+[
+    local,
+    object,
+    uuid(ab4ae4fb-6508-4950-a032-45fd4bf8c43b)
+]
+interface IXGameSave : IUnknown
+{
+    HRESULT XGameSaveInitializeProvider( [in] XUserHandle requestingUser, [in, string] const char *configurationId, [in] BOOLEAN syncOnDemand, [out] XGameSaveProviderHandle *provider );
+    HRESULT XGameSaveInitializeProviderAsync( [in] XUserHandle requestingUser, [in, string] const char *configurationId, [in] BOOLEAN syncOnDemand, [in, out] XAsyncBlock *async );
+    HRESULT XGameSaveInitializeProviderResult( [in, out] XAsyncBlock *async, [out] XGameSaveProviderHandle *provider );
+    void    XGameSaveCloseProvider( [in] XGameSaveProviderHandle provider );
+    HRESULT XGameSaveGetRemainingQuota( [in] XGameSaveProviderHandle provider, [out] INT64 *remainingQuota );
+    HRESULT XGameSaveGetRemainingQuotaAsync( [in] XGameSaveProviderHandle provider, [in, out] XAsyncBlock *async );
+    HRESULT XGameSaveGetRemainingQuotaResult( [in, out] XAsyncBlock *async, [out] INT64 *remainingQuota );
+    HRESULT XGameSaveDeleteContainer( [in] XGameSaveProviderHandle provider, [in, string] const char *containerName );
+    HRESULT XGameSaveDeleteContainerAsync( [in] XGameSaveProviderHandle provider, [in, string] const char *containerName, [in, out] XAsyncBlock *async );
+    HRESULT XGameSaveDeleteContainerResult( [in, out] XAsyncBlock *async );
+    HRESULT XGameSaveGetContainerInfo( [in] XGameSaveProviderHandle provider, [in, string] const char *containerName, [in, optional] void *context, [in] XGameSaveContainerInfoCallback *callback );
+    HRESULT XGameSaveEnumerateContainerInfo( [in] XGameSaveProviderHandle provider, [in, optional] void *context, [in] XGameSaveContainerInfoCallback *callback );
+    HRESULT XGameSaveEnumerateContainerInfoByName( [in] XGameSaveProviderHandle provider, [in, optional, string] const char *containerNamePrefix, [in, optional] void *context, [in] XGameSaveContainerInfoCallback *callback );
+    HRESULT XGameSaveCreateContainer( [in] XGameSaveProviderHandle provider, [in, string] const char *containerName, [out] XGameSaveContainerHandle *containerContext );
+    void    XGameSaveCloseContainer( [in] XGameSaveContainerHandle context );
+    HRESULT XGameSaveEnumerateBlobInfo( [in] XGameSaveContainerHandle container, [in, optional] void *context, [in] XGameSaveBlobInfoCallback *callback );
+    HRESULT XGameSaveEnumerateBlobInfoByName( [in] XGameSaveContainerHandle container, [in, optional, string] const char *blobNamePrefix, [in, optional] void *context, [in] XGameSaveBlobInfoCallback *callback );
+    HRESULT XGameSaveReadBlobData( [in] XGameSaveContainerHandle container, [in, optional, string, size_is(countOfBlobs,)] const char **blobNames, [in, out] UINT32 *countOfBlobs, [in] SIZE_T blobsSize, [out, size_is(blobsSize)] XGameSaveBlob *blobData );
+    HRESULT XGameSaveReadBlobDataAsync( [in] XGameSaveContainerHandle container, [in, optional, string, size_is(countOfBlobs,)] const char **blobNames, [in] UINT32 countOfBlobs, [in, out] XAsyncBlock *async );
+    HRESULT XGameSaveReadBlobDataResult( [in, out] XAsyncBlock *async, [in] SIZE_T blobsSize, [out, size_is(blobsSize)] XGameSaveBlob *blobData, [out] UINT32 *countOfBlobs );
+    HRESULT XGameSaveCreateUpdate( [in] XGameSaveContainerHandle container, [in, string] const char *containerDisplayName, [out] XGameSaveUpdateHandle *updateContext );
+    void    XGameSaveCloseUpdate( [in] XGameSaveUpdateHandle context );
+    HRESULT XGameSaveSubmitBlobWrite( [in] XGameSaveUpdateHandle updateContext, [in, string] const char *blobName, [in, size_is(byteCount)] UINT8 *data, [in] SIZE_T byteCount );
+    HRESULT XGameSaveSubmitBlobDelete( [in] XGameSaveUpdateHandle updateContext, [in, string] const char *blobName );
+    HRESULT XGameSaveSubmitUpdate( [in] XGameSaveUpdateHandle updateContext );
+    HRESULT XGameSaveSubmitUpdateAsync( [in] XGameSaveUpdateHandle updateContext, [in, out] XAsyncBlock *async );
+    HRESULT XGameSaveSubmitUpdateResult( [in, out] XAsyncBlock *async );
+    HRESULT XGameSaveFilesGetFolderWithUiAsync( [in] XUserHandle requestingUser, [in, string] const char *configurationId, [in, out] XAsyncBlock *async );
+    HRESULT XGameSaveFilesGetFolderWithUiResult( [in, out] XAsyncBlock *async, [in] SIZE_T folderSize, [out, size_is(folderSize)] char *folderResult );
+    HRESULT XGameSaveFilesGetRemainingQuota( [in] XUserHandle userContext, [in, string] const char *configurationId, [out] INT64 *remainingQuota );
+}
+
+[
+    local,
+    object,
+    uuid(eb9bf948-18dc-4d82-bbcc-40e0a809c4c0)
+]
+interface IXUserAddWithUi : IXUserBase
+{
+    HRESULT XUserAddByIdWithUiAsync( [in] UINT64 userId, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserAddByIdWithUiResult( [in,out] XAsyncBlock *asyncBlock, [out] XUserHandle *user );
+}
+
+[
+    local,
+    object,
+    uuid(1bf2f8c5-d507-4e52-bb05-f726d0e71161)
+]
+interface IXUserMsa : IXUserAddWithUi
+{
+    HRESULT XUserGetMsaTokenSilentlyAsync( [in] XUserHandle user, [in] XUserGetMsaTokenSilentlyOptions options, [in] LPCSTR scope, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserGetMsaTokenSilentlyResult( [in,out] XAsyncBlock *asyncBlock, [in] SIZE_T size, [out] LPSTR token, [out] SIZE_T *used );
+    HRESULT XUserGetMsaTokenSilentlyResultSize( [in,out] XAsyncBlock *asyncBlock, [out] SIZE_T *size );
+}
+
+[
+    local,
+    object,
+    uuid(079415e3-6727-437f-8e9d-8f8f9b2439f7)
+]
+interface IXUserStore : IXUserMsa
+{
+    BOOLEAN XUserIsStoreUser( [in] XUserHandle user );
+}
+
+[
+    local,
+    object,
+    uuid(26f3c674-a2fe-44fa-b6c4-a323bc94ff53)
+]
+interface IXUserPlatform : IXUserStore
+{
+    HRESULT XUserPlatformRemoteConnectSetEventHandlers( [in] XTaskQueueHandle queue, [in] XUserPlatformRemoteConnectEventHandlers *handlers );
+    HRESULT XUserPlatformRemoteConnectCancelPrompt( [in] XUserPlatformOperation operation );
+    HRESULT XUserPlatformSpopPromptSetEventHandlers( [in] XTaskQueueHandle queue, [in] XUserPlatformSpopPromptEventHandler *handler, [in] void *context );
+    HRESULT XUserPlatformSpopPromptComplete( [in] XUserPlatformOperation operation, [in] XUserPlatformOperationResult result );
+}
+
+[
+    local,
+    object,
+    uuid(5131d685-4394-4ee6-8c18-bfb5d4aef1ff)
+]
+interface IXUserSignOut : IXUserPlatform
+{
+    BOOLEAN XUserIsSignOutPresent();
+    HRESULT XUserSignOutAsync( [in] XUserHandle user, [in,out] XAsyncBlock *asyncBlock );
+    HRESULT XUserSignOutResult( [in,out] XAsyncBlock *asyncBlock );
+}
+
+[
+    object
+]
+interface IXUserImpl : IXUserSignOut
+{}
+
+[
+    local,
+    object,
+    uuid(cef4fac0-7676-4a94-a119-4c43f9eb5b74)
+]
+interface IXUserGamertag : IUnknown
+{
+    HRESULT XUserGetGamertag( [in] XUserHandle user, [in] XUserGamertagComponent component, [in] SIZE_T size, [out] LPSTR gamertag, [out] SIZE_T *used );
+}
+
+[
+    local,
+    object,
+    uuid(026b010c-06c3-4cdd-bbcb-43f229db1cff)    
+]
+interface IXGameProtocolImpl : IUnknown
+{
+    HRESULT XGameProtocolRegisterForActivation( [in] XTaskQueueHandle queue, [in] void *context, [in] void *callback, [out] XTaskQueueRegistrationToken *token );
+    BOOLEAN XGameProtocolUnregisterForActivation( XTaskQueueRegistrationToken *token, boolean wait );
+    void XGameProtocolActivationCallback( [in] void *context, [in] LPSTR protocolUri );
+}
+[
+    local,
+    object,
+    uuid(2e4f76fe-0fc7-461e-ab4d-a4499434c3cf)
+]
+interface IXGameActivationImpl : IUnknown
+{
+    HRESULT XGameActivationRegisterForEvent( [in, optional] XTaskQueueHandle queue, [in, optional] void *context, [in] XGameActivationCallback *callback, [out] XTaskQueueRegistrationToken *token );
+    BOOLEAN XGameActivationUnregisterForEvent( [in] XTaskQueueRegistrationToken token, [in] BOOLEAN wait );
+    HRESULT XGameActivationAcceptPendingInvite( [in, string] const char *inviteUri );
+}
+
+[
+    uuid(e349bd1a-fc20-4e40-b99c-4178cc6b409f)
+]
+coclass XSystemImpl
+{
+    [default] interface IXSystemImpl;
+}
+
+[
+    uuid(b884675d-b738-4a9c-815d-9a9a1e0c6c9b)
+]
+coclass XSystemAnalyticsImpl
+{
+    [default] interface IXSystemAnalyticsImpl;
+}
+
+[
+    uuid(8836fe87-edb9-4fe3-8dad-05f0d2cd5b40)
+]
+coclass XGameRuntimeFeatureImpl
+{
+    [default] interface IXGameRuntimeFeatureImpl;
+}
+
+[
+    uuid(01acd177-91f9-4763-a38e-ccbb55ce32e0)
+]
+coclass XUserImpl
+{
+    [default] interface IXUserImpl;
+    interface IXUserGamertag;
+}
+
+[
+    uuid(95fd18d2-74dd-4d7c-aa1b-0b51827665d6)
+]
+coclass XGameProtocolImpl
+{
+    [default] interface IXGameProtocolImpl;
+}
+
+[
+    uuid(704c3f58-e629-4cc2-b197-30511b996fe2)
+]
+coclass XGameSaveImpl
+{
+    [default] interface IXGameSave;
+}
+
+[
+    uuid(7f0fe8b8-e075-49ab-9aa7-a1e065489a9e)
+]
+coclass XGameActivationImpl
+{
+    [default] interface IXGameActivationImpl;
+}

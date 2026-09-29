@@ -950,6 +950,7 @@ SOURCES = \
 	windows.ui.idl \
 	windows.ui.input.idl \
 	windows.ui.notifications.idl \
+	windows.ui.text.core.idl \
 	windows.ui.viewmanagement.core.idl \
 	windows.ui.viewmanagement.idl \
 	windows.ui.windowmanagement.idl \
@@ -1100,6 +1101,7 @@ SOURCES = \
 	xmllite.idl \
 	xpsobjectmodel.idl \
 	xpsobjectmodel_1.idl \
+	xuser.idl \
 	zmouse.h
 
 INSTALL_LIB = \
